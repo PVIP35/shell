@@ -302,7 +302,7 @@ int main()
     // Create a variable to track input redirect file path
     char *input_redirect_path = NULL;
     // Create a flag to track wether a process is input for background
-    //int background_flag = 0;
+    // int background_flag = 0;
     // Ignore the following Signals by default
     signal(SIGINT, SIG_IGN);
     signal(SIGTSTP, SIG_IGN);
@@ -340,46 +340,27 @@ int main()
         parse(buffer, tokens, argv, &argc, &output_append_path,
               &output_redirect_path, &input_redirect_path);
 
-        if (tokens[0] != NULL)
+        char *built_in = tokens[0];
+
+        if (built_in != NULL)
         {
             // Check if the first token matches built ins and handle
             // appropriately
-            if (strcmp(tokens[0], "exit") == 0)
+            if (strcmp(built_in, "exit") == 0)
             {
                 return 0;
             }
-            else if (strcmp(tokens[0], "cd") == 0)
+            else if (strcmp(built_in, "cd") == 0)
             {
-                if (argc != 2)
-                {
-                    fprintf(stderr, "Syntax error with cd");
-                }
-                else if (chdir(argv[1]) != 0)
-                {
-                    perror("chdir");
-                }
+                cd(argv, &argc);
             }
             else if (strcmp(tokens[0], "ln") == 0)
             {
-                if (argc != 3)
-                {
-                    fprintf(stderr, "Syntax error with ln");
-                }
-                else if (link(argv[1], argv[2]) != 0)
-                {
-                    perror("link");
-                }
+                ln(argv, &argc);
             }
             else if (strcmp(tokens[0], "rm") == 0)
             {
-                if (argc != 2)
-                {
-                    fprintf(stderr, "Syntax error with rm");
-                }
-                else if (unlink(argv[1]) != 0)
-                {
-                    perror("unlink");
-                }
+                rm(argv, &argc);
             }
             else
             {
@@ -403,6 +384,12 @@ int main()
                         perror("setpgid");
                         exit(1);
                     }
+                    // If the process is not running in the background, set the controlling terminal
+                    // if (!background_flag && tcsetpgrp(0, getpgrp()) == -1)
+                    // {
+                    //     perror("tcsetpgrp");
+                    //     exit(1);
+                    // }
                     io_redirection(&input_redirect_path, &output_redirect_path,
                                    &output_append_path);
                     execv(tokens[0], argv);
@@ -411,6 +398,11 @@ int main()
                 }
                 else
                 {
+                    // if (tcsetpgrp(0, getpgrp()) == -1)
+                    // {
+                    //     perror("tcsetpgrp");
+                    //     exit(1);
+                    // }
                     wait(0);
                 }
             }
@@ -440,4 +432,40 @@ int main()
     }
 
     return 0;
+}
+// Executes built in cd command
+void cd(char *argv[count / 2], int *argc)
+{
+    if ((*argc) != 2)
+    {
+        fprintf(stderr, "Syntax error with cd");
+    }
+    else if (chdir(argv[1]) != 0)
+    {
+        perror("chdir");
+    }
+}
+// Executes built in ln
+void ln(char *argv[count / 2], int *argc)
+{
+    if ((*argc) != 3)
+    {
+        fprintf(stderr, "Syntax error with ln");
+    }
+    else if (link(argv[1], argv[2]) != 0)
+    {
+        perror("link");
+    }
+}
+// Executes built in rm
+void rm(char *argv[count / 2], int *argc)
+{
+    if ((*argc) != 2)
+    {
+        fprintf(stderr, "Syntax error with rm");
+    }
+    else if (unlink(argv[1]) != 0)
+    {
+        perror("unlink");
+    }
 }
