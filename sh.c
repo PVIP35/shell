@@ -9,6 +9,7 @@
 #include "jobs.h"
 
 size_t count = 1024;
+job_list_t *job_list;
 
 /*
      * This function prints errors from parse to fprintf and null resets arrays
@@ -287,6 +288,54 @@ void io_redirection(char **input_redirect_path, char **output_redirect_path,
     }
 }
 
+// Executes built in cd command
+void cd(char *argv[count / 2], int *argc)
+{
+    if ((*argc) != 2)
+    {
+        fprintf(stderr, "Syntax error with cd");
+    }
+    else if (chdir(argv[1]) != 0)
+    {
+        perror("chdir");
+    }
+}
+// Executes built in ln
+void ln(char *argv[count / 2], int *argc)
+{
+    if ((*argc) != 3)
+    {
+        fprintf(stderr, "Syntax error with ln");
+    }
+    else if (link(argv[1], argv[2]) != 0)
+    {
+        perror("link");
+    }
+}
+// Executes built in rm
+void rm(char *argv[count / 2], int *argc)
+{
+    if ((*argc) != 2)
+    {
+        fprintf(stderr, "Syntax error with rm");
+    }
+    else if (unlink(argv[1]) != 0)
+    {
+        perror("unlink");
+    }
+}
+void jobs_builtin(int *argc)
+{
+    if ((*argc) != 1)
+    {
+        fprintf(stderr, "Syntax error with jobs");
+    }
+    else
+    {
+        jobs(job_list);
+    }
+}
+
 int main()
 {
     char buffer[count];
@@ -303,6 +352,8 @@ int main()
     char *input_redirect_path = NULL;
     // Create a flag to track wether a process is input for background
     // int background_flag = 0;
+    // Create the jobs list
+    job_list = init_job_list();
     // Ignore the following Signals by default
     signal(SIGINT, SIG_IGN);
     signal(SIGTSTP, SIG_IGN);
@@ -354,14 +405,19 @@ int main()
             {
                 cd(argv, &argc);
             }
-            else if (strcmp(tokens[0], "ln") == 0)
+            else if (strcmp(built_in, "ln") == 0)
             {
                 ln(argv, &argc);
             }
-            else if (strcmp(tokens[0], "rm") == 0)
+            else if (strcmp(built_in, "rm") == 0)
             {
                 rm(argv, &argc);
             }
+            else if (strcmp(built_in, "jobs") == 0)
+            {
+                jobs_builtin(&argc);
+            }
+
             else
             {
                 // Execute child process
@@ -385,7 +441,7 @@ int main()
                         exit(1);
                     }
                     // If the process is not running in the background, set the controlling terminal
-                    // if (!background_flag && tcsetpgrp(0, getpgrp()) == -1)
+                    // if (!background_flag && (tcsetpgrp(0, getpgrp()) == -1)
                     // {
                     //     perror("tcsetpgrp");
                     //     exit(1);
@@ -398,12 +454,12 @@ int main()
                 }
                 else
                 {
+                    wait(0);
                     // if (tcsetpgrp(0, getpgrp()) == -1)
                     // {
                     //     perror("tcsetpgrp");
                     //     exit(1);
                     // }
-                    wait(0);
                 }
             }
         }
@@ -432,40 +488,4 @@ int main()
     }
 
     return 0;
-}
-// Executes built in cd command
-void cd(char *argv[count / 2], int *argc)
-{
-    if ((*argc) != 2)
-    {
-        fprintf(stderr, "Syntax error with cd");
-    }
-    else if (chdir(argv[1]) != 0)
-    {
-        perror("chdir");
-    }
-}
-// Executes built in ln
-void ln(char *argv[count / 2], int *argc)
-{
-    if ((*argc) != 3)
-    {
-        fprintf(stderr, "Syntax error with ln");
-    }
-    else if (link(argv[1], argv[2]) != 0)
-    {
-        perror("link");
-    }
-}
-// Executes built in rm
-void rm(char *argv[count / 2], int *argc)
-{
-    if ((*argc) != 2)
-    {
-        fprintf(stderr, "Syntax error with rm");
-    }
-    else if (unlink(argv[1]) != 0)
-    {
-        perror("unlink");
-    }
 }
