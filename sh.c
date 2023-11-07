@@ -351,7 +351,7 @@ int main()
     // Create a variable to track input redirect file path
     char *input_redirect_path = NULL;
     // Create a flag to track wether a process is input for background
-    // int background_flag = 0;
+    int background_flag = 0;
     // Create the jobs list
     job_list = init_job_list();
     // Ignore the following Signals by default
@@ -429,11 +429,7 @@ int main()
                 }
                 if (child_pid == 0)
                 {
-                    // Restore the following Signals to default
-                    signal(SIGINT, SIG_DFL);
-                    signal(SIGTSTP, SIG_DFL);
-                    signal(SIGTTOU, SIG_DFL);
-                    // Find the unique Process id
+                     // Find the unique Process id
                     pid_t current_pid = getpid();
                     if (setpgid(current_pid, current_pid) == -1)
                     {
@@ -441,11 +437,17 @@ int main()
                         exit(1);
                     }
                     // If the process is not running in the background, set the controlling terminal
-                    // if (!background_flag && (tcsetpgrp(0, getpgrp()) == -1)
-                    // {
-                    //     perror("tcsetpgrp");
-                    //     exit(1);
-                    // }
+                    if (!background_flag && (tcsetpgrp(0, getpgrp()) == -1))
+                    {
+                        perror("tcsetpgrp");
+                        exit(1);
+                    }
+
+                    // Restore the following Signals to default
+                    signal(SIGINT, SIG_DFL);
+                    signal(SIGTSTP, SIG_DFL);
+                    signal(SIGTTOU, SIG_DFL);
+                   
                     io_redirection(&input_redirect_path, &output_redirect_path,
                                    &output_append_path);
                     execv(tokens[0], argv);
@@ -455,11 +457,11 @@ int main()
                 else
                 {
                     wait(0);
-                    // if (tcsetpgrp(0, getpgrp()) == -1)
-                    // {
-                    //     perror("tcsetpgrp");
-                    //     exit(1);
-                    // }
+                    if (tcsetpgrp(0, getpgrp()) == -1)
+                    {
+                        perror("tcsetpgrp");
+                        exit(1);
+                    }
                 }
             }
         }
