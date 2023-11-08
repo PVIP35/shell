@@ -370,7 +370,7 @@ void post_foreground_handler(pid_t fg_pid, int *jid, char *command)
     // Print statement when terminated by signal
     if (WIFSIGNALED(status))
     {
-        if (printf("(%d) terminated by signal %d", fg_pid, WTERMSIG(status)) ==
+        if (printf("(%d) terminated by signal %d\n", fg_pid, WTERMSIG(status)) ==
             -1)
         {
             perror("printf");
@@ -384,7 +384,7 @@ void post_foreground_handler(pid_t fg_pid, int *jid, char *command)
         {
             fprintf(stderr, "add  stopped job in foreground error");
         }
-        if (printf("[%d] (%d) suspended by signal %d", (*jid), fg_pid,
+        if (printf("[%d] (%d) suspended by signal %d\n", (*jid), fg_pid,
                    WSTOPSIG(status)) == -1)
         {
             perror("printf");
@@ -424,7 +424,7 @@ void process_handler()
             else
             {
                 // remove job did not error so print the exit message
-                printf("[%d] (%d) terminated with exit status %d", jid, pid,
+                printf("[%d] (%d) terminated with exit status %d\n", jid, pid,
                        WEXITSTATUS(status));
             }
         }
@@ -451,7 +451,7 @@ void process_handler()
             else
             {
                 // update job did not error so print the exit message
-                printf("[%d] (%d) suspended by signal %d", jid, pid,
+                printf("[%d] (%d) suspended by signal %d\n", jid, pid,
                        WTERMSIG(status));
             }
         }
@@ -465,7 +465,7 @@ void process_handler()
             else
             {
                 // update job did not error so print the exit message
-                printf("[%d] (%d) resumed", jid, pid);
+                printf("[%d] (%d) resumed\n", jid, pid);
             }
         }
     }
