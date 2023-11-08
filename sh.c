@@ -353,7 +353,7 @@ void jobs_builtin(int *argc)
     }
 }
 
-void post_foreground_handler(pid_t fg_pid)
+void post_foreground_handler(pid_t fg_pid, int *jid, char *command)
 {
     // Create a status integer for waitpid to put info into
     int status;
@@ -370,11 +370,109 @@ void post_foreground_handler(pid_t fg_pid)
     // Print statement when terminated by signal
     if (WIFSIGNALED(status))
     {
-        if (printf("(%) terminated by signal %", fg_pid, WTERMSIG(status)) == -1)
+        if (printf("(%d) terminated by signal %d", fg_pid, WTERMSIG(status)) ==
+            -1)
         {
-            perror('printf');
+            perror("printf");
         }
     }
+    // Whenever a job (foreground OR background) is stopped, it should be added
+    // to the job list if it has not been already, and its state updated.
+    else if (WIFSTOPPED(status))
+    {
+        if (add_job(job_list, (*jid), fg_pid, STOPPED, command) == -1)
+        {
+            fprintf(stderr, "add  stopped job in foreground error");
+        }
+        if (printf("[%d] (%d) suspended by signal %d", (*jid), fg_pid,
+                   WSTOPSIG(status)) == -1)
+        {
+            perror("printf");
+        }
+        (*jid)++;
+    }
+}
+
+void process_handler()
+{
+    // Create status integer for waitpid to input info into
+    int status;
+    // Create a variable to hold pid on success, returns the process ID of the
+    // child whose state has changed;
+    int pid;
+    // Use negative one to wait for for any child process whose process group ID
+    // is equal to the absolute value of pid. (which should work because we
+    // setpgid
+    //  to be the same as unique pid)
+    while ((pid = waitpid(-1, &status, WNOHANG | WCONTINUED | WUNTRACED)) > 0)
+    {
+        // Get the job id to handle calls to job functions
+        int jid = get_job_jid(job_list, pid);
+
+        // If job isn't in the job list move to next pid
+        if (jid == -1)
+        {
+            continue;
+        }
+        // Check termination cases according to order on handout
+        if (WIFEXITED(status))
+        {
+            if (remove_job_pid(job_list, pid) == -1)
+            {
+                fprintf(stderr, "Removing Job after exit error");
+            }
+            else
+            {
+                // remove job did not error so print the exit message
+                printf("[%d] (%d) terminated with exit status %d", jid, pid,
+                       WEXITSTATUS(status));
+            }
+        }
+        else if (WIFSIGNALED(status))
+        {
+            if (remove_job_pid(job_list, pid) == -1)
+            {
+                fprintf(stderr, "Removing Job after signal interuption error");
+            }
+            else
+            {
+                // remove job did not error so print the exit message
+                printf("[%d] (%d) terminated by signal %d", jid, pid,
+                       WTERMSIG(status));
+            }
+        }
+        else if (WIFSTOPPED(status))
+        {
+            // Update job status to stopped
+            if (update_job_jid(job_list, jid, STOPPED) == -1)
+            {
+                fprintf(stderr, "Updating Job after stopped error");
+            }
+            else
+            {
+                // update job did not error so print the exit message
+                printf("[%d] (%d) suspended by signal %d", jid, pid,
+                       WTERMSIG(status));
+            }
+        }
+        else if (WIFCONTINUED(status))
+        {
+            // Update job status to stopped
+            if (update_job_jid(job_list, jid, RUNNING) == -1)
+            {
+                fprintf(stderr, "Updating Job after resumed error");
+            }
+            else
+            {
+                // update job did not error so print the exit message
+                printf("[%d] (%d) resumed", jid, pid);
+            }
+        }
+    }
+    // if (pid == -1)
+    // {
+    //     perror("waitpid");
+    // }
 }
 
 int main()
@@ -401,6 +499,8 @@ int main()
     signal(SIGINT, SIG_IGN);
     signal(SIGTSTP, SIG_IGN);
     signal(SIGTTOU, SIG_IGN);
+
+    process_handler();
 #ifdef PROMPT
     if (printf("33sh> ") < 0)
     {
@@ -463,7 +563,6 @@ int main()
             {
                 jobs_builtin(&argc);
             }
-
             else
             {
                 // Execute child process
@@ -520,14 +619,12 @@ int main()
                     else
                     {
                         // Abstract Out Foreground Process Handler
-                        post_foreground_handler(child_pid);
+                        post_foreground_handler(child_pid, &jid, built_in);
                     }
-
                     background_flag = 0;
                 }
             }
         }
-
         argc = 0;
         // Create a variable to track output redirection with append
         output_append_path = NULL;
