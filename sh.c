@@ -452,7 +452,7 @@ void process_handler()
             {
                 // update job did not error so print the exit message
                 printf("[%d] (%d) suspended by signal %d\n", jid, pid,
-                       WTERMSIG(status));
+                       WSTOPSIG(status));
             }
         }
         else if (WIFCONTINUED(status))
@@ -500,7 +500,6 @@ int main()
     signal(SIGTSTP, SIG_IGN);
     signal(SIGTTOU, SIG_IGN);
 
-    process_handler();
 #ifdef PROMPT
     if (printf("33sh> ") < 0)
     {
@@ -628,6 +627,7 @@ int main()
                 }
             }
         }
+        process_handler();
         argc = 0;
         // Create a variable to track output redirection with append
         output_append_path = NULL;
