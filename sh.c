@@ -328,8 +328,7 @@ void fg(char *argv[count / 2], int *argc) {
             waitpid(pid, &status, WUNTRACED);
 
             if (WIFSIGNALED(status)) {
-                // remove job did not error so print the exit message
-                printf("[%d] (%d) terminated by signal %d", jid, pid,
+                printf("(%d) terminated by signal %d", pid,
                        WTERMSIG(status));
             } else if (WIFSTOPPED(status)) {
                 // Update job status to stopped
