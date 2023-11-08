@@ -583,10 +583,13 @@ int main()
                     }
                     // If the process is not running in the background, set the
                     // controlling terminal
-                    if (!background_flag && (tcsetpgrp(0, getpgrp()) == -1))
+                    if (!background_flag)
                     {
-                        perror("tcsetpgrp");
-                        exit(1);
+                        if (tcsetpgrp(0, getpgrp()) == -1)
+                        {
+                            perror("tcsetpgrp");
+                            exit(1);
+                        }
                     }
 
                     // Restore the following Signals to default
@@ -610,7 +613,7 @@ int main()
                         {
                             fprintf(stderr, "add background job error");
                         }
-                        if (printf("[%d], (%d)\n", jid, child_pid) < 0)
+                        if (printf("[%d] (%d)\n", jid, child_pid) < 0)
                         {
                             perror("printf");
                         }
