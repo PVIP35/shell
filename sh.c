@@ -432,7 +432,10 @@ void fg(char *argv[count / 2], int *argc)
             }
 
             // Remove job from the job list
-            remove_job_pid(job_list, pid);
+            if (remove_job_pid(job_list, pid) == -1)
+            {
+                fprintf(stderr, "error removing job");
+            }
 
             // Reap the process (wait for status change)
             waitpid(pid, &status, WUNTRACED);
@@ -615,9 +618,25 @@ int main()
     // Job Id
     int jid = 1;
     // Ignore the following Signals by default
-    signal(SIGINT, SIG_IGN);
-    signal(SIGTSTP, SIG_IGN);
-    signal(SIGTTOU, SIG_IGN);
+    // Restore the following Signals to default
+    if (signal(SIGINT, SIG_IGN) == SIG_ERR)
+    {
+        perror("signal");
+        cleanup_job_list(job_list);
+        exit(1);
+    }
+    if (signal(SIGTSTP, SIG_IGN) == SIG_ERR)
+    {
+        perror("signal");
+        cleanup_job_list(job_list);
+        exit(1);
+    }
+    if (signal(SIGTTOU, SIG_IGN) == SIG_ERR)
+    {
+        perror("signal");
+        cleanup_job_list(job_list);
+        exit(1);
+    }
 
 #ifdef PROMPT
     if (printf("33sh> ") < 0)
@@ -681,14 +700,14 @@ int main()
             {
                 jobs_builtin(&argc);
             }
-            // else if (strcmp(built_in, "bg") == 0)
-            // {
-            //     bg(argv, &argc);
-            // }
-            // else if (strcmp(built_in, "fg") == 0)
-            // {
-            //     fg(argv, &argc);
-            // }
+            else if (strcmp(built_in, "bg") == 0)
+            {
+                bg(argv, &argc);
+            }
+            else if (strcmp(built_in, "fg") == 0)
+            {
+                fg(argv, &argc);
+            }
             else
             {
                 // Execute child process
@@ -720,9 +739,24 @@ int main()
                     }
 
                     // Restore the following Signals to default
-                    signal(SIGINT, SIG_DFL);
-                    signal(SIGTSTP, SIG_DFL);
-                    signal(SIGTTOU, SIG_DFL);
+                    if (signal(SIGINT, SIG_DFL) == SIG_ERR)
+                    {
+                        perror("signal");
+                        cleanup_job_list(job_list);
+                        exit(1);
+                    }
+                    if (signal(SIGTSTP, SIG_DFL) == SIG_ERR)
+                    {
+                        perror("signal");
+                        cleanup_job_list(job_list);
+                        exit(1);
+                    }
+                    if (signal(SIGTTOU, SIG_DFL) == SIG_ERR)
+                    {
+                        perror("signal");
+                        cleanup_job_list(job_list);
+                        exit(1);
+                    }
 
                     io_redirection(&input_redirect_path, &output_redirect_path,
                                    &output_append_path);
