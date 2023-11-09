@@ -681,14 +681,14 @@ int main()
             {
                 jobs_builtin(&argc);
             }
-            else if (strcmp(built_in, "bg") == 0)
-            {
-                bg(argv, &argc);
-            }
-            else if (strcmp(built_in, "fg") == 0)
-            {
-                fg(argv, &argc);
-            }
+            // else if (strcmp(built_in, "bg") == 0)
+            // {
+            //     bg(argv, &argc);
+            // }
+            // else if (strcmp(built_in, "fg") == 0)
+            // {
+            //     fg(argv, &argc);
+            // }
             else
             {
                 // Execute child process
