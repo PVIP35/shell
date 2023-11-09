@@ -8,7 +8,9 @@
 #include <unistd.h>
 #include "jobs.h"
 
+// Global variable to allow for a change in input count to shell
 size_t count = 1024;
+// Global job list for managing job implementation
 job_list_t *job_list;
 
 /*
@@ -254,7 +256,9 @@ void io_redirection(char **input_redirect_path, char **output_redirect_path,
     }
 }
 
-// Executes built in cd command
+// Executes built in cd command by calling chdir
+// argv- input argument vector
+// argc - pointer to argument counter
 void cd(char *argv[count / 2], int *argc) {
     if ((*argc) != 2) {
         fprintf(stderr, "Syntax error with cd");
@@ -262,7 +266,9 @@ void cd(char *argv[count / 2], int *argc) {
         perror("chdir");
     }
 }
-// Executes built in ln
+// Executes built in ln by calling link
+// argv- input argument vector
+// argc - pointer to argument counter
 void ln(char *argv[count / 2], int *argc) {
     if ((*argc) != 3) {
         fprintf(stderr, "Syntax error with ln");
@@ -270,7 +276,9 @@ void ln(char *argv[count / 2], int *argc) {
         perror("link");
     }
 }
-// Executes built in rm
+// Executes built in rm function by calling unlink
+// argv- input argument vector
+// argc - pointer to argument counter
 void rm(char *argv[count / 2], int *argc) {
     if ((*argc) != 2) {
         fprintf(stderr, "Syntax error with rm");
@@ -278,7 +286,8 @@ void rm(char *argv[count / 2], int *argc) {
         perror("unlink");
     }
 }
-// Executes built in jobs
+// Executes built in jobs function by calling provided jobs function
+// argc - pointer to argument counter
 void jobs_builtin(int *argc) {
     if ((*argc) != 1) {
         fprintf(stderr, "Syntax error with jobs");
@@ -286,6 +295,10 @@ void jobs_builtin(int *argc) {
         jobs(job_list);
     }
 }
+// Executed built in bg function by sending kill to all processes that share the
+// job id and updating the job list.
+// argv- input argument vector
+// argc - pointer to argument counter
 void bg(char *argv[count / 2], int *argc) {
     if ((*argc) == 2 && argv[0][1] != '\0' && argv[1][0] == '%') {
         // Store job id for job list
@@ -294,6 +307,8 @@ void bg(char *argv[count / 2], int *argc) {
         if (pid == -1) {
             fprintf(stderr, "job not found\n");
         } else {
+            // Use -pid so it sends to all processes that have pid as a process
+            // group id.
             if (kill(-pid, SIGCONT) == -1) {
                 perror("kill");
             }
@@ -303,6 +318,10 @@ void bg(char *argv[count / 2], int *argc) {
         fprintf(stderr, "Incorrect Syntax for bg builtin");
     }
 }
+// Executed built in fg function by sending SIGCONT to the job, placing in the
+// foreground and then reaping properly
+// argv- input argument vector
+// argc - pointer to argument counter
 void fg(char *argv[count / 2], int *argc) {
     int status;
     if ((*argc) == 2 && argv[0][1] != '\0' && argv[1][0] == '%') {
@@ -312,24 +331,28 @@ void fg(char *argv[count / 2], int *argc) {
         if (pid == -1) {
             fprintf(stderr, "job not found \n");
         } else {
+            // Give the foreground job terminal control
             if (tcsetpgrp(0, pid) == -1) {
                 perror("tcsetpgrp");
                 // Cleanup jobs list before each exit
                 cleanup_job_list(job_list);
                 exit(1);
             }
-
+            // Send SIGCONT to all processes that have pid as a process group
+            // id.
             if (kill(-pid, SIGCONT) == -1) {
                 perror("kill");
             }
 
+            // Remove job from the job list
             remove_job_pid(job_list, pid);
 
+            // Reap the process (wait for status change)
             waitpid(pid, &status, WUNTRACED);
 
+            // Handle status changes
             if (WIFSIGNALED(status)) {
-                printf("(%d) terminated by signal %d", pid,
-                       WTERMSIG(status));
+                printf("(%d) terminated by signal %d", pid, WTERMSIG(status));
             } else if (WIFSTOPPED(status)) {
                 // Update job status to stopped
                 if (add_job(job_list, jid, pid, STOPPED, argv[0]) == -1) {
@@ -340,6 +363,7 @@ void fg(char *argv[count / 2], int *argc) {
                            WSTOPSIG(status));
                 }
             }
+            // Return control to shell
             if (tcsetpgrp(0, getpgrp()) == -1) {
                 perror("tcsetpgrp");
                 // Cleanup jobs list before each exit
@@ -351,6 +375,10 @@ void fg(char *argv[count / 2], int *argc) {
         fprintf(stderr, "fg syntax error");
     }
 }
+// Reaps and handles status changes for foreground processes
+// fg_pid - process id of the foreground process
+// jid - job id
+// command - a char * to the name of the command given to the shell
 void post_foreground_handler(pid_t fg_pid, int *jid, char *command) {
     // Create a status integer for waitpid to put info into
     int status;
@@ -384,7 +412,7 @@ void post_foreground_handler(pid_t fg_pid, int *jid, char *command) {
         (*jid)++;
     }
 }
-
+// This function reaps and handles status changes for all processes
 void process_handler() {
     // Create status integer for waitpid to input info into
     int status;
@@ -439,10 +467,6 @@ void process_handler() {
             }
         }
     }
-    // if (pid == -1)
-    // {
-    //     perror("waitpid");
-    // }
 }
 
 int main() {
