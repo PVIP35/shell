@@ -12,6 +12,7 @@
 size_t count = 1024;
 // Global job list for managing job implementation
 job_list_t *job_list;
+int jid = 1;
 
 /*
      * This function prints errors from parse to fprintf and null resets arrays
@@ -42,8 +43,7 @@ syntax output_append_path- used to store the file path of ">>" redirection
 output_redirect_path- used to store the file path of ">" redirection
 input_redirect_path - used to store the file path of "<" redirection
 */
-void parse(char buffer[count], char *tokens[count / 2], char *argv[count / 2],
-           int *argc, char **output_append_path, char **output_redirect_path,
+void parse(char buffer[count], char *tokens[count / 2], char *argv[count / 2], char **output_append_path, char **output_redirect_path,
            char **input_redirect_path, int *background_flag)
 {
     // Counts instances of output redirection
@@ -212,19 +212,15 @@ void parse(char buffer[count], char *tokens[count / 2], char *argv[count / 2],
             if (last_slash != NULL)
             {
                 argv[index] = last_slash + 1;
-                // Count argument counter each time a token is added to argv
-                (*argc)++;
             }
             else
             {
                 argv[index] = token_pointer;
-                (*argc)++;
             }
         }
         else
         {
             argv[index] = token_pointer;
-            (*argc)++;
         }
         prev_token = token_pointer;
         token_pointer = strtok('\0', " \n\t");
@@ -315,9 +311,9 @@ void io_redirection(char **input_redirect_path, char **output_redirect_path,
 // Executes built in cd command by calling chdir
 // argv- input argument vector
 // argc - pointer to argument counter
-void cd(char *argv[count / 2], int *argc)
+void cd(char *argv[count / 2], int argc)
 {
-    if ((*argc) != 2)
+    if (argc != 2)
     {
         fprintf(stderr, "Syntax error with cd");
     }
@@ -329,9 +325,9 @@ void cd(char *argv[count / 2], int *argc)
 // Executes built in ln by calling link
 // argv- input argument vector
 // argc - pointer to argument counter
-void ln(char *argv[count / 2], int *argc)
+void ln(char *argv[count / 2], int argc)
 {
-    if ((*argc) != 3)
+    if (argc != 3)
     {
         fprintf(stderr, "Syntax error with ln");
     }
@@ -343,9 +339,9 @@ void ln(char *argv[count / 2], int *argc)
 // Executes built in rm function by calling unlink
 // argv- input argument vector
 // argc - pointer to argument counter
-void rm(char *argv[count / 2], int *argc)
+void rm(char *argv[count / 2], int argc)
 {
-    if ((*argc) != 2)
+    if (argc != 2)
     {
         fprintf(stderr, "Syntax error with rm");
     }
@@ -356,9 +352,9 @@ void rm(char *argv[count / 2], int *argc)
 }
 // Executes built in jobs function by calling provided jobs function
 // argc - pointer to argument counter
-void jobs_builtin(int *argc)
+void jobs_builtin(int argc)
 {
-    if ((*argc) != 1)
+    if (argc != 1)
     {
         fprintf(stderr, "Syntax error with jobs");
     }
@@ -371,9 +367,9 @@ void jobs_builtin(int *argc)
 // job id and updating the job list.
 // argv- input argument vector
 // argc - pointer to argument counter
-void bg(char *argv[count / 2], int *argc)
+void bg(char *argv[count / 2], int argc)
 {
-    if ((*argc) == 2 && argv[0][1] != '\0' && argv[1][0] == '%')
+    if (argc == 2 && argv[0][1] != '\0' && argv[1][0] == '%')
     {
         // Store job id for job list
         int jid = atoi(&argv[1][1]);
@@ -402,10 +398,10 @@ void bg(char *argv[count / 2], int *argc)
 // foreground and then reaping properly
 // argv- input argument vector
 // argc - pointer to argument counter
-void fg(char *argv[count / 2], int *argc)
+void fg(char *argv[count / 2], int argc)
 {
     int status;
-    if ((*argc) == 2 && argv[0][1] != '\0' && argv[1][0] == '%')
+    if (argc == 2 && argv[0][1] != '\0' && argv[1][0] == '%')
     {
         // Store job id for job list
         int jid = atoi(&argv[1][1]);
@@ -478,20 +474,12 @@ void fg(char *argv[count / 2], int *argc)
 // fg_pid - process id of the foreground process
 // jid - job id
 // command - a char * to the name of the command given to the shell
-void post_foreground_handler(pid_t fg_pid, int *jid, char *command)
+void post_foreground_handler(pid_t fg_pid, char *command)
 {
     // Create a status integer for waitpid to put info into
     int status;
     // Reap foreground process
     waitpid(fg_pid, &status, WUNTRACED);
-    // Return terminal control to shell
-    if (tcsetpgrp(0, getpgrp()) == -1)
-    {
-        perror("tcsetpgrp");
-        // Cleanup jobs list before each exit
-        cleanup_job_list(job_list);
-        exit(1);
-    }
     // Print statement when terminated by signal
     if (WIFSIGNALED(status))
     {
@@ -506,16 +494,24 @@ void post_foreground_handler(pid_t fg_pid, int *jid, char *command)
     // updated.
     else if (WIFSTOPPED(status))
     {
-        if (add_job(job_list, (*jid), fg_pid, STOPPED, command) == -1)
+        if (add_job(job_list, jid, fg_pid, STOPPED, command) == -1)
         {
             fprintf(stderr, "add  stopped job in foreground error");
         }
-        if (printf("[%d] (%d) suspended by signal %d\n", (*jid), fg_pid,
+        if (printf("[%d] (%d) suspended by signal %d\n", jid, fg_pid,
                    WSTOPSIG(status)) == -1)
         {
             perror("printf");
         }
-        (*jid)++;
+        jid++;
+    }
+    // Return terminal control to shell
+    if (tcsetpgrp(0, getpgrp()) == -1)
+    {
+        perror("tcsetpgrp");
+        // Cleanup jobs list before each exit
+        cleanup_job_list(job_list);
+        exit(1);
     }
 }
 // This function reaps and handles status changes for all processes
@@ -533,10 +529,10 @@ void process_handler()
     while ((pid = waitpid(-1, &status, WNOHANG | WCONTINUED | WUNTRACED)) > 0)
     {
         // Get the job id to handle calls to job functions
-        int jid = get_job_jid(job_list, pid);
+        int local_jid = get_job_jid(job_list, pid);
 
         // If job isn't in the job list move to next pid
-        if (jid == -1)
+        if (local_jid == -1)
         {
             continue;
         }
@@ -550,7 +546,7 @@ void process_handler()
             else
             {
                 // remove job did not error so print the exit message
-                printf("[%d] (%d) terminated with exit status %d\n", jid, pid,
+                printf("[%d] (%d) terminated with exit status %d\n", local_jid, pid,
                        WEXITSTATUS(status));
             }
         }
@@ -563,35 +559,35 @@ void process_handler()
             else
             {
                 // remove job did not error so print the exit message
-                printf("[%d] (%d) terminated by signal %d", jid, pid,
+                printf("[%d] (%d) terminated by signal %d", local_jid, pid,
                        WTERMSIG(status));
             }
         }
         else if (WIFSTOPPED(status))
         {
             // Update job status to stopped
-            if (update_job_jid(job_list, jid, STOPPED) == -1)
+            if (update_job_jid(job_list, local_jid, STOPPED) == -1)
             {
                 fprintf(stderr, "Updating Job after stopped error");
             }
             else
             {
                 // update job did not error so print the exit message
-                printf("[%d] (%d) suspended by signal %d\n", jid, pid,
+                printf("[%d] (%d) suspended by signal %d\n", local_jid, pid,
                        WSTOPSIG(status));
             }
         }
         else if (WIFCONTINUED(status))
         {
             // Update job status to stopped
-            if (update_job_jid(job_list, jid, RUNNING) == -1)
+            if (update_job_jid(job_list, local_jid, RUNNING) == -1)
             {
                 fprintf(stderr, "Updating Job after resumed error");
             }
             else
             {
                 // update job did not error so print the exit message
-                printf("[%d] (%d) resumed\n", jid, pid);
+                printf("[%d] (%d) resumed\n", local_jid, pid);
             }
         }
     }
@@ -615,8 +611,6 @@ int main()
     int background_flag = 0;
     // Create the jobs list
     job_list = init_job_list();
-    // Job Id
-    int jid = 1;
     // Ignore the following Signals by default
     // Restore the following Signals to default
     if (signal(SIGINT, SIG_IGN) == SIG_ERR)
@@ -669,8 +663,13 @@ int main()
         }
         // Set end of the read input to Null
         buffer[input_bytes_read] = '\0';
-        parse(buffer, tokens, argv, &argc, &output_append_path,
+        parse(buffer, tokens, argv, &output_append_path,
               &output_redirect_path, &input_redirect_path, &background_flag);
+
+        for (int i = 0; argv[i] != NULL; i++)
+        {
+            argc++;
+        }
 
         char *built_in = tokens[0];
 
@@ -686,27 +685,27 @@ int main()
             }
             else if (strcmp(built_in, "cd") == 0)
             {
-                cd(argv, &argc);
+                cd(argv, argc);
             }
             else if (strcmp(built_in, "ln") == 0)
             {
-                ln(argv, &argc);
+                ln(argv, argc);
             }
             else if (strcmp(built_in, "rm") == 0)
             {
-                rm(argv, &argc);
+                rm(argv, argc);
             }
             else if (strcmp(built_in, "jobs") == 0)
             {
-                jobs_builtin(&argc);
+                jobs_builtin(argc);
             }
             else if (strcmp(built_in, "bg") == 0)
             {
-                bg(argv, &argc);
+                bg(argv, argc);
             }
             else if (strcmp(built_in, "fg") == 0)
             {
-                fg(argv, &argc);
+                fg(argv, argc);
             }
             else
             {
@@ -783,7 +782,7 @@ int main()
                     else
                     {
                         // Abstract Out Foreground Process Handler
-                        post_foreground_handler(child_pid, &jid, built_in);
+                        post_foreground_handler(child_pid, built_in);
                     }
                     background_flag = 0;
                 }
