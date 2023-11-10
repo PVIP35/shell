@@ -3,9 +3,9 @@
 #               without using the jobs list.
 #
 
-./shell_2_tests/shell_2_tests_long/programs/33sh_to_file ./reaptest17.txt ./shell_2_tests/shell_2_tests_long/programs/mypid 4 &
+$SUITE/programs/33sh_to_file ./reaptest17.txt ./shell_2_tests/shell_2_tests_long/programs/mypid 4 &
 SLEEP 1
-./shell_2_tests/shell_2_tests_long/programs/check_process_state ./reaptest17.txt
+$SUITE/programs/check_process_state ./reaptest17.txt
 SLEEP 4
-./shell_2_tests/shell_2_tests_long/programs/check_process_state ./reaptest17.txt
+$SUITE/programs/check_process_state ./reaptest17.txt
 /bin/rm ./reaptest17.txt
