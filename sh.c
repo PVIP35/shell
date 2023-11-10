@@ -272,7 +272,7 @@ void io_redirection(char **input_redirect_path, char **output_redirect_path,
             cleanup_job_list(job_list);
             exit(1);
         }
-        if (open((*input_redirect_path), O_RDONLY, 0X666) == -1)
+        if (open((*input_redirect_path), O_RDONLY, 0666) == -1)
         {
             perror("open");
             cleanup_job_list(job_list);
@@ -287,7 +287,7 @@ void io_redirection(char **input_redirect_path, char **output_redirect_path,
             cleanup_job_list(job_list);
             exit(1);
         }
-        if (open((*output_redirect_path), O_CREAT | O_TRUNC | O_WRONLY, 0X666) ==
+        if (open((*output_redirect_path), O_CREAT | O_TRUNC | O_WRONLY, 0666) ==
             -1)
         {
             perror("open");
@@ -303,7 +303,7 @@ void io_redirection(char **input_redirect_path, char **output_redirect_path,
             cleanup_job_list(job_list);
             exit(1);
         }
-        if (open((*output_append), O_CREAT | O_APPEND | O_WRONLY, 0X666) == -1)
+        if (open((*output_append), O_CREAT | O_APPEND | O_WRONLY, 0666) == -1)
         {
             perror("open");
             cleanup_job_list(job_list);
